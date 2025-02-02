@@ -10,7 +10,9 @@ import {
 } from "../gleam_fetch/gleam/fetch.mjs";
 
 export function raw_send(request, callback) {
-  fetch(request).then((res) => callback(new Ok(res))).catch(e => callback(new Error(new NetworkError(e.toString()))))
+  fetch(request)
+    .then((res) => callback(new Ok(res)))
+    .catch(e => callback(new Error(new NetworkError(e.toString()))))
 }
 
 export function from_fetch_response(response) {

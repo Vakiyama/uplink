@@ -19,12 +19,12 @@ pub type FetchResponse
 @external(javascript, "../gleam_fetch_ffi.mjs", "raw_send")
 pub fn raw_send(
   a: FetchRequest,
-  cb: fn(Result(FetchResponse, FetchError)) -> Nil,
+  cb: fn(Result(FetchResponse, FetchError)) -> any,
 ) -> Nil
 
 pub fn send(
   request: Request(String),
-  cb: fn(Result(Response(FetchBody), FetchError)) -> Nil,
+  cb: fn(Result(Response(FetchBody), FetchError)) -> any,
 ) -> Nil {
   use res <- raw_send(request |> to_fetch_request)
   result.map(res, from_fetch_response)
@@ -33,7 +33,7 @@ pub fn send(
 
 pub fn send_form_data(
   request: Request(FormData),
-  cb: fn(Result(Response(FetchBody), FetchError)) -> Nil,
+  cb: fn(Result(Response(FetchBody), FetchError)) -> any,
 ) -> Nil {
   use res <- raw_send(
     request
@@ -45,7 +45,7 @@ pub fn send_form_data(
 
 pub fn send_bits(
   request: Request(BitArray),
-  cb: fn(Result(Response(FetchBody), FetchError)) -> Nil,
+  cb: fn(Result(Response(FetchBody), FetchError)) -> any,
 ) -> Nil {
   use res <- raw_send(
     request
@@ -70,17 +70,17 @@ pub fn from_fetch_response(a: FetchResponse) -> Response(FetchBody)
 @external(javascript, "../gleam_fetch_ffi.mjs", "read_bytes_body")
 pub fn read_bytes_body(
   a: Response(FetchBody),
-  cb: fn(Result(Response(BitArray), FetchError)) -> Nil,
+  cb: fn(Result(Response(BitArray), FetchError)) -> any,
 ) -> Nil
 
 @external(javascript, "../gleam_fetch_ffi.mjs", "read_text_body")
 pub fn read_text_body(
   a: Response(FetchBody),
-  cb: fn(Result(Response(String), FetchError)) -> Nil,
+  cb: fn(Result(Response(String), FetchError)) -> any,
 ) -> Nil
 
 @external(javascript, "../gleam_fetch_ffi.mjs", "read_json_body")
 pub fn read_json_body(
   a: Response(FetchBody),
-  cb: fn(Result(Response(Dynamic), FetchError)) -> Nil,
+  cb: fn(Result(Response(Dynamic), FetchError)) -> any,
 ) -> Nil
