@@ -1,3 +1,4 @@
+// import effect
 import effect
 import envoy
 import gleam/dynamic
@@ -8,6 +9,13 @@ import gleam/json
 import gleam/result
 
 const anthropic_api_models = "https://api.anthropic.com/v1/models"
+
+pub fn set_default_headers(req, api_key) {
+  req
+  |> request.set_header("content-type", "application/json")
+  |> request.set_header("anthropic-version", "2023-06-01")
+  |> request.set_header("x-api-key", api_key)
+}
 
 pub type GetModelError {
   Fetch(fetch.FetchError)
@@ -29,9 +37,8 @@ pub fn get_models() {
     request.to(anthropic_api_models) |> result.replace_error(InvalidEndpoint),
   )
   let req =
-    request.set_header(req, "x-api-key", api_key)
-    |> request.set_header("content-type", "application/json")
-    |> request.set_header("anthropic-version", "2023-06-01")
+    req
+    |> set_default_headers(api_key)
     |> request.set_query([#("limit", "40")])
 
   use res <- effect.try_await_map_error(fetch.send(req), Fetch)
