@@ -1,1 +1,11 @@
+# Flakes
+
 .direnv/
+.env
+
+# Gleam generated
+
+*.beam
+*.ez
+/build
+erl_crash.dump

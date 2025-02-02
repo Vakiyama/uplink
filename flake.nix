@@ -14,6 +14,7 @@
         devShell = with pkgs; pkgs.mkShell {
           buildInputs = [
             gleam
+            erlang
           ];
         };
       }
