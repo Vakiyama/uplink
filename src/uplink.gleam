@@ -16,6 +16,22 @@ import gleam_community/ansi
 import effect
 
 pub fn main() {
+  // let eff =
+  //   effect_2.pure(10)
+  //   |> effect_2.try(fn(x) {
+  //     case x > 5 {
+  //       True -> effect_2.pure("Hi")
+  //       False -> effect_2.error(TooSmall)
+  //     }
+  //   })
+
+  // effect_2.perform(eff, fn(res) {
+  //   case res {
+  //     Ok(val) -> io.println("Success " <> val)
+  //     Error(_) -> io.println("Error: Too small...")
+  //   }
+  // })
+
   use models <- effect.perform(models.get_models())
   case models {
     Ok(models) -> {

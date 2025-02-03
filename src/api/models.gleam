@@ -30,12 +30,14 @@ pub type Model {
 }
 
 pub fn get_models() {
-  use api_key <- effect.try(
+  use api_key <- effect.try(effect.from_result(
     envoy.get("ANTHROPIC_API_KEY") |> result.replace_error(NoEnv),
-  )
-  use req <- effect.try(
+  ))
+
+  use req <- effect.try(effect.from_result(
     request.to(anthropic_api_models) |> result.replace_error(InvalidEndpoint),
-  )
+  ))
+
   let req =
     req
     |> set_default_headers(api_key)
@@ -44,13 +46,9 @@ pub fn get_models() {
   use res <- effect.try_await_map_error(fetch.send(req), Fetch)
   use res <- effect.try_await_map_error(fetch.read_text_body(res), Fetch)
 
-  use models <- effect.try(
-    res.body
-    |> decode_models
-    |> result.replace_error(DecodeError),
-  )
-
-  models |> Ok |> effect.dispatch
+  res.body
+  |> decode_models
+  |> effect.from_result
 }
 
 fn decode_models(json_string) {

@@ -2,7 +2,6 @@
 # You typically do not need to edit this file
 
 packages = [
-  { name = "effect", version = "1.0.0", build_tools = ["gleam"], requirements = ["gleam_javascript", "gleam_stdlib"], otp_app = "effect", source = "hex", outer_checksum = "EDA4F730D25C3259F29D1C03DAF56EF4D9FDECFF337A61A168ECF552265FD7D7" },
   { name = "envoy", version = "1.0.2", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "envoy", source = "hex", outer_checksum = "95FD059345AA982E89A0B6E2A3BF1CF43E17A7048DCD85B5B65D3B9E4E39D359" },
   { name = "glam", version = "2.0.1", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "glam", source = "hex", outer_checksum = "66EC3BCD632E51EED029678F8DF419659C1E57B1A93D874C5131FE220DFAD2B2" },
   { name = "gleam_community_ansi", version = "1.4.2", build_tools = ["gleam"], requirements = ["gleam_community_colour", "gleam_regexp", "gleam_stdlib"], otp_app = "gleam_community_ansi", source = "hex", outer_checksum = "479DEDC748D08B310C9FEB9C4CBEC46B95C874F7F4F2844304D6D20CA78A8BB5" },
@@ -19,7 +18,6 @@ packages = [
 ]
 
 [requirements]
-effect = { version = ">= 1.0.0 and < 2.0.0" }
 envoy = { version = ">= 1.0.2 and < 2.0.0" }
 gleam_community_ansi = { version = ">= 1.4.2 and < 2.0.0" }
 gleam_fetch = { version = ">= 1.1.0 and < 2.0.0" }
