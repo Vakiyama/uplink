@@ -1,5 +1,5 @@
 // import effect
-import effect
+import effect/effect_result as effect
 import envoy
 import gleam/dynamic
 import gleam/dynamic/decode

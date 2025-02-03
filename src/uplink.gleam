@@ -13,13 +13,13 @@ import teashop/key
 
 import gleam_community/ansi
 
-import effect
+import effect/effect_result as effect
 
 pub fn main() {
   // let eff =
   //   effect_2.pure(10)
   //   |> effect_2.try(fn(x) {
-  //     case x > 5 {
+  //     cas > 5 {
   //       True -> effect_2.pure("Hi")
   //       False -> effect_2.error(TooSmall)
   //     }
