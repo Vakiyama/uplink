@@ -1,6 +1,6 @@
-// import effect
-import effect/effect_result as effect
-import envoy
+import api/config
+import effect
+import effect/promise as effect_promise
 import gleam/dynamic
 import gleam/dynamic/decode
 import gleam/fetch
@@ -19,10 +19,10 @@ pub fn set_default_headers(req, api_key) {
 
 pub type GetModelError {
   Fetch(fetch.FetchError)
-  NoEnv
+  Config(config.ConfigError)
   InvalidEndpoint
   ReadBody
-  DecodeError
+  Decode
 }
 
 pub type Model {
@@ -30,25 +30,27 @@ pub type Model {
 }
 
 pub fn get_models() {
-  use api_key <- effect.try(effect.from_result(
-    envoy.get("ANTHROPIC_API_KEY") |> result.replace_error(NoEnv),
-  ))
+  use api_key <- effect.from_result_map_error(
+    config.get_api_key("ANTHROPIC_API_KEY"),
+    Config,
+  )
 
-  use req <- effect.try(effect.from_result(
+  use req <- effect.from_result(
     request.to(anthropic_api_models) |> result.replace_error(InvalidEndpoint),
-  ))
+  )
 
   let req =
     req
     |> set_default_headers(api_key)
     |> request.set_query([#("limit", "40")])
 
-  use res <- effect.try_await_map_error(fetch.send(req), Fetch)
-  use res <- effect.try_await_map_error(fetch.read_text_body(res), Fetch)
+  use res <- effect_promise.from_promise_result(fetch.send(req), Fetch)
+  use res <- effect_promise.from_promise(fetch.read_text_body(res))
+  use res <- effect.then(res |> result.map_error(Fetch) |> effect.wrap_result)
 
   res.body
   |> decode_models
-  |> effect.from_result
+  |> effect.wrap_result
 }
 
 fn decode_models(json_string) {
@@ -64,9 +66,9 @@ fn decode_models(json_string) {
   }
 
   use dynamic <- result.try(
-    json.parse(json_string, data_decoder) |> result.replace_error(DecodeError),
+    json.parse(json_string, data_decoder) |> result.replace_error(Decode),
   )
 
   decode.run(dynamic, decode.list(of: model_decoder))
-  |> result.replace_error(DecodeError)
+  |> result.replace_error(Decode)
 }

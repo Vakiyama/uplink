@@ -1,5 +1,7 @@
+import api/config
 import api/models
 import components/text_input
+import gleam/fetch
 import gleam/io
 import gleam/list
 import gleam/option
@@ -13,25 +15,9 @@ import teashop/key
 
 import gleam_community/ansi
 
-import effect/effect_result as effect
+import effect
 
 pub fn main() {
-  // let eff =
-  //   effect_2.pure(10)
-  //   |> effect_2.try(fn(x) {
-  //     cas > 5 {
-  //       True -> effect_2.pure("Hi")
-  //       False -> effect_2.error(TooSmall)
-  //     }
-  //   })
-
-  // effect_2.perform(eff, fn(res) {
-  //   case res {
-  //     Ok(val) -> io.println("Success " <> val)
-  //     Error(_) -> io.println("Error: Too small...")
-  //   }
-  // })
-
   use models <- effect.perform(models.get_models())
   case models {
     Ok(models) -> {
@@ -41,10 +27,23 @@ pub fn main() {
       Nil
     }
     Error(err) -> {
-      case err {
-        models.DecodeError -> io.println("Decode err")
-        _ -> io.println("other err")
+      let message = case err {
+        models.Decode -> "Decode Error"
+        models.InvalidEndpoint -> "Invalid Endpoint"
+        models.Fetch(fetch_error) ->
+          case fetch_error {
+            fetch.NetworkError(msg) -> msg
+            fetch.UnableToReadBody -> "Unable to read body"
+            fetch.InvalidJsonBody -> "Invalid Json Body"
+          }
+        models.Config(config_error) ->
+          case config_error {
+            config.NoEnv(missing_env_key) ->
+              string.append("Missing env: ", missing_env_key)
+          }
+        models.ReadBody -> "Read Body Error"
       }
+      io.print_error(message)
     }
   }
 }
@@ -126,7 +125,7 @@ fn update_model_choice(model: ModelChoiceModel, event) {
 fn update_chat_model(model: ChatModel, event) {
   case event {
     event.Key(key.Esc) -> #(model, command.quit())
-    event.Key(key.Enter) -> handle_submit_message(model)
+    // event.Key(key.Enter) -> handle_submit_message(model)
     _otherwise -> {
       let #(text_model, command) = text_input.update(model.text_model, event)
       #(ChatModel(..model, text_model:), command)
@@ -134,9 +133,9 @@ fn update_chat_model(model: ChatModel, event) {
   }
 }
 
-fn handle_submit_message(model: ChatModel) {
-  todo
-}
+// fn handle_submit_message(model: ChatModel) {
+//   todo
+// }
 
 fn update(model: Model, event) {
   case model.model_choice_model.chosen {
@@ -216,23 +215,3 @@ fn render_model_chooser(model: ModelChoiceModel) {
 //    - uploading or using images, files (text files?)
 //    - send github links? (or even search github would be sick)
 //    - use a browser
-// 
-// 
-// 
-// 
-// 
-// 
-// 
-// 
-// 
-// 
-// 
-// 
-// 
-// 
-// 
-// 
-// 
-// 
-// 
-// 
