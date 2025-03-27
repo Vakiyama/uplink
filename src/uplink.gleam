@@ -1,4 +1,5 @@
 import api/config
+import api/messages as api_messages
 import api/models
 import components/text_input
 import gleam/fetch
@@ -135,6 +136,9 @@ fn update_chat_model(model: ChatModel, event) {
 
 fn handle_submit_message(model: ChatModel) {
   let input = model.text_model.value
+
+  use response <- effect.perform(api_messages.get_messages())
+  todo
 }
 
 fn update(model: Model, event) {

@@ -1,29 +1,45 @@
 import api/config
 import api/models
 import effect
-import envoy
-import gleam/dynamic
+import effect/promise
+
+// import envoy
+// import gleam/dynamic
 import gleam/dynamic/decode
 import gleam/fetch
+import gleam/http
 import gleam/http/request
 import gleam/json
 import gleam/result
 import messages
 
-pub type MessagesRequestError {
-  Fetch(fetch.FetchError)
-  Config(config.ConfigError)
-  InvalidEndpoint
-  ReadBody
-  Decode
-}
+const anthropic_api_messages = "https://api.anthropic.com/v1/messages"
 
-pub fn get_messages() {
+pub fn get_messages(input) {
   use api_key <- effect.from_result_map_error(
     config.get_api_key("ANTHROPIC_API_KEY"),
-    Config,
+    models.Config,
   )
-  todo
+
+  use req <- effect.from_result(
+    request.to(anthropic_api_messages)
+    |> result.replace_error(models.InvalidEndpoint),
+  )
+
+  let req =
+    req
+    |> models.set_default_headers(api_key)
+    |> request.set_method(http.Post)
+
+  use res <- promise.from_promise_result(fetch.send(req), models.Fetch)
+  use res <- promise.from_promise(fetch.read_text_body(res))
+  use res <- effect.then(
+    res |> result.map_error(models.Fetch) |> effect.wrap_result,
+  )
+
+  res.body
+  |> decode_messages
+  |> effect.wrap_result
 }
 
 fn parse_stop_reason(stop_reason) {
@@ -65,8 +81,8 @@ fn decode_messages(json_string) {
 
   use dynamic <- result.try(
     json.parse(json_string, decode.dynamic)
-    |> result.replace_error(decode.DecodeError),
+    |> result.replace_error(models.Decode),
   )
   decode.run(dynamic, messages_decoder)
-  |> result.replace_error(decode.DecodeError)
+  |> result.replace_error(models.Decode)
 }

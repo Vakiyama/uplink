@@ -10,19 +10,19 @@ import gleam/result
 
 const anthropic_api_models = "https://api.anthropic.com/v1/models"
 
-pub fn set_default_headers(req, api_key) {
-  req
-  |> request.set_header("content-type", "application/json")
-  |> request.set_header("anthropic-version", "2023-06-01")
-  |> request.set_header("x-api-key", api_key)
-}
-
-pub type GetModelError {
+pub type RequestError {
   Fetch(fetch.FetchError)
   Config(config.ConfigError)
   InvalidEndpoint
   ReadBody
   Decode
+}
+
+pub fn set_default_headers(req, api_key) {
+  req
+  |> request.set_header("content-type", "application/json")
+  |> request.set_header("anthropic-version", "2023-06-01")
+  |> request.set_header("x-api-key", api_key)
 }
 
 pub type Model {
