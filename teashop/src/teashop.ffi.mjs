@@ -453,7 +453,7 @@ const clear = () => {
 
 // import * as fs from 'node:fs';
 // function log(text) {
-  // fs.appendFile("log.txt", text, (err) => {});
+// fs.appendFile("log.txt", text, (err) => {});
 // }
 
 class Renderer extends EventEmitter {
@@ -482,7 +482,7 @@ class Renderer extends EventEmitter {
     let now = 10;
     if (this.#isEmpty() || this.#sameAsLastFlush()) {
     } else {
-      this.#flush();
+      this.flush();
     }
     const updateStep = () => {
       const renderer = this;
@@ -495,7 +495,7 @@ class Renderer extends EventEmitter {
     // this.#runner.emit("tick", now);
   }
 
-  #flush() {
+  flush() {
     let new_lines = this.#lines();
     let new_lines_this_flush = new_lines.length;
     let clear_sequence = new Array();
@@ -507,7 +507,7 @@ class Renderer extends EventEmitter {
       }
     }
     // extra clear line to prevent phantom length lines
-        clear_sequence.push(clear_line_seq());
+    clear_sequence.push(clear_line_seq());
 
     let tmp = new_lines.join("\r\n");
     // log(clear_sequence.join("") + tmp + "\r\n" + cursor_back_seq(100));
@@ -565,7 +565,7 @@ class Renderer extends EventEmitter {
   }
 
   repaint() {
-      this.#last_render = "";
+    this.#last_render = "";
   }
 
   #restore() {
@@ -577,7 +577,7 @@ class Renderer extends EventEmitter {
   #shutdown() {
     this.off();
     clearTimeout(this.#nextUpdateTimeout);
-    // this.#flush();
+    // this.flush();
     this.#restore();
   }
 
@@ -651,23 +651,27 @@ export class App extends EventEmitter {
 
   #handleNewEvent(event) {
     this.#queue.push(event)
-    this.#flush()
+    this.flush()
   }
 
-  #flush() {
-    if (this.#queue.length) {
-      while (this.#queue.length) {
-        this.#handleEvent(this.#queue.shift())
+  flush() {
+    function recurse(done) {
+      if (this.#queue.length) {
+        this.#handleEvent(this.#queue.shift(), recurse)
+      } else {
+        done()
       }
     }
 
-    while (this.#commands.length) {
-      this.#handleCommand(this.#commands.shift())
-    }
+    recurse(() => {
+      while (this.#commands.length) {
+        this.#handleCommand(this.#commands.shift())
+      }
 
-    if (this.#queue.length) {
-      this.#flush()
-    }
+      if (this.#queue.length) {
+        this.flush()
+      }
+    });
   }
 
   initializeTerminal() {
@@ -836,13 +840,18 @@ export class App extends EventEmitter {
         break;
     }
   }
-  #handleEvent(event) {
-    let [model, command] = this.#update(this.#model, event);
-    let updated_view = this.#view(model);
-    this.#handleNewCommand(command);
-    this.#renderer.render(updated_view);
-    this.#model = model;
+
+  #handleEvent(event, done) {
+    // Call update with a callback that receives the new model and command.
+    this.#update(this.#model, event, (model, command) => {
+      let updated_view = this.#view(model);
+      this.#handleNewCommand(command);
+      this.#renderer.render(updated_view);
+      this.#model = model;
+      done()
+    });
   }
+
 
   #handleNewCommand(command) {
     this.#commands.push(command)
@@ -865,7 +874,7 @@ export class App extends EventEmitter {
         let program = command[0][0];
         let args = command[0][1].toArray();
         this.releaseTerminal()
-        child_process.spawnSync(program, args, {stdio: "inherit"})
+        child_process.spawnSync(program, args, { stdio: "inherit" })
         this.restoreTerminal()
         break
       case command[0] instanceof ClearScreen:

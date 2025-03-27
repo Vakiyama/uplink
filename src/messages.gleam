@@ -25,8 +25,12 @@ pub type Message {
   User(UserMessage)
 }
 
-pub type Messages {
-  Messages(first: UserMessage, rest: List(Message))
+pub fn make_ai_message(content: String) {
+  Assistant(AIMessage(Text(content)))
+}
+
+pub fn make_user_message(content: String) {
+  User(UserMessage(Text(content)))
 }
 
 pub type LLMRequestOptions {
@@ -34,20 +38,10 @@ pub type LLMRequestOptions {
     model: String,
     max_tokens: Int,
     system: String,
-    messages: Messages,
+    messages: List(Message),
     temperature: Float,
   )
 }
-
-// fetch("https://api.anthropic.com/v1/messages", {
-//   method: "POST",
-//   headers: {
-//     "x-api-key": process.env.ANTHROPIC_API_KEY!,
-//     "anthropic-version": "2023-06-01",
-//     "content-type": "application/json",
-//   },
-//   body: stringified,
-// }),
 
 pub type StopReason {
   EndTurn
@@ -64,7 +58,7 @@ pub type Usage {
 pub type LLMResponse {
   AnthropicResponse(
     id: String,
-    content: List(AIMessage),
+    content: List(Message),
     model: String,
     stop_reason: StopReason,
     usage: Usage,

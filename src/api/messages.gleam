@@ -2,6 +2,7 @@ import api/config
 import api/models
 import effect
 import effect/promise
+import gleam/list
 
 // import envoy
 // import gleam/dynamic
@@ -15,7 +16,34 @@ import messages
 
 const anthropic_api_messages = "https://api.anthropic.com/v1/messages"
 
-pub fn get_messages(input) {
+fn text_to_user_message(text: String) -> messages.UserMessage {
+  messages.UserMessage(messages.Text(text))
+}
+
+fn text_to_ai_message(text: String) -> messages.AIMessage {
+  messages.AIMessage(messages.Text(text))
+}
+
+fn message_to_json(message: messages.Message) {
+  case message {
+    messages.Assistant(ai_message) ->
+      json.object([
+        #("content", json.string(ai_message.content.text)),
+        #("role", json.string("assistant")),
+      ])
+    messages.User(user_message) ->
+      json.object([
+        #("content", json.string(user_message.content.text)),
+        #("role", json.string("user")),
+      ])
+  }
+}
+
+pub fn get_messages(
+  messages: List(messages.Message),
+  model: models.Model,
+  max_tokens: Int,
+) {
   use api_key <- effect.from_result_map_error(
     config.get_api_key("ANTHROPIC_API_KEY"),
     models.Config,
@@ -26,10 +54,18 @@ pub fn get_messages(input) {
     |> result.replace_error(models.InvalidEndpoint),
   )
 
+  let body =
+    json.object([
+      #("model", json.string(model.id)),
+      #("max_tokens", json.int(max_tokens)),
+      #("messages", json.array({ messages }, of: message_to_json)),
+    ])
+
   let req =
     req
     |> models.set_default_headers(api_key)
     |> request.set_method(http.Post)
+    |> request.set_body(json.to_string(body))
 
   use res <- promise.from_promise_result(fetch.send(req), models.Fetch)
   use res <- promise.from_promise(fetch.read_text_body(res))
@@ -55,7 +91,7 @@ fn parse_stop_reason(stop_reason) {
 fn decode_messages(json_string) {
   let content_decoder = {
     use text <- decode.field("text", decode.string)
-    decode.success(messages.AIMessage(content: messages.Text(text)))
+    decode.success(messages.make_ai_message(text))
   }
 
   let usage_decoder = {

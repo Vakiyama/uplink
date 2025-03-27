@@ -18,6 +18,26 @@ import gleam_community/ansi
 
 import effect
 
+fn print_request_error(error: models.RequestError) {
+  let message = case error {
+    models.Decode -> "Decode Error"
+    models.InvalidEndpoint -> "Invalid Endpoint"
+    models.Fetch(fetch_error) ->
+      case fetch_error {
+        fetch.NetworkError(msg) -> msg
+        fetch.UnableToReadBody -> "Unable to read body"
+        fetch.InvalidJsonBody -> "Invalid Json Body"
+      }
+    models.Config(config_error) ->
+      case config_error {
+        config.NoEnv(missing_env_key) ->
+          string.append("Missing env: ", missing_env_key)
+      }
+    models.ReadBody -> "Read Body Error"
+  }
+  io.print_error(message)
+}
+
 pub fn main() {
   use models <- effect.perform(models.get_models())
   case models {
@@ -27,25 +47,7 @@ pub fn main() {
       |> teashop.start(Nil)
       Nil
     }
-    Error(err) -> {
-      let message = case err {
-        models.Decode -> "Decode Error"
-        models.InvalidEndpoint -> "Invalid Endpoint"
-        models.Fetch(fetch_error) ->
-          case fetch_error {
-            fetch.NetworkError(msg) -> msg
-            fetch.UnableToReadBody -> "Unable to read body"
-            fetch.InvalidJsonBody -> "Invalid Json Body"
-          }
-        models.Config(config_error) ->
-          case config_error {
-            config.NoEnv(missing_env_key) ->
-              string.append("Missing env: ", missing_env_key)
-          }
-        models.ReadBody -> "Read Body Error"
-      }
-      io.print_error(message)
-    }
+    Error(err) -> print_request_error(err)
   }
 }
 
@@ -60,7 +62,7 @@ type ModelChoiceModel {
 type ChatModel {
   ChatModel(
     text_model: text_input.Model,
-    messages: option.Option(messages.Messages),
+    messages: option.Option(List(messages.Message)),
   )
 }
 
@@ -123,10 +125,15 @@ fn update_model_choice(model: ModelChoiceModel, event) {
   }
 }
 
-fn update_chat_model(model: ChatModel, event) {
+fn update_chat_model(model: ChatModel, model_choice: ModelChoiceModel, event) {
+  let assert option.Some(chosen_model) = model_choice.chosen
+
   case event {
     event.Key(key.Esc) -> #(model, command.quit())
-    event.Key(key.Enter) -> handle_submit_message(model)
+    event.Key(key.Enter) -> #(
+      handle_submit_message(model, chosen_model),
+      command.none(),
+    )
     _otherwise -> {
       let #(text_model, command) = text_input.update(model.text_model, event)
       #(ChatModel(..model, text_model:), command)
@@ -134,11 +141,52 @@ fn update_chat_model(model: ChatModel, event) {
   }
 }
 
-fn handle_submit_message(model: ChatModel) {
-  let input = model.text_model.value
+fn initialize_messages(messages: option.Option(List(messages.Message))) {
+  case messages {
+    option.Some(list_of_messages) -> list_of_messages
+    option.None -> []
+  }
+}
 
-  use response <- effect.perform(api_messages.get_messages())
-  todo
+fn handle_submit_message(model: ChatModel, model_choice: models.Model) {
+  let user_message = messages.make_user_message(model.text_model.value)
+
+  let messages = initialize_messages(model.messages)
+
+  effect.perform(
+    messages
+      |> list.append([user_message])
+      |> api_messages.get_messages(model_choice, 1024),
+    fn(response) {
+      case response {
+        Error(error) -> {
+          let messages = initialize_messages(model.messages)
+          print_request_error(error)
+          ChatModel(
+            ..model,
+            messages: option.Some(
+              list.append(messages, [
+                messages.make_ai_message(
+                  "An error has occured. Please try again.",
+                ),
+              ]),
+            ),
+          )
+        }
+        Ok(ai_response) -> {
+          let messages = model.messages |> initialize_messages
+
+          ChatModel(
+            ..model,
+            messages: option.Some(
+              messages
+              |> list.append(ai_response.content),
+            ),
+          )
+        }
+      }
+    },
+  )
 }
 
 fn update(model: Model, event) {
@@ -177,9 +225,8 @@ fn render_chat(model: ChatModel, choice: models.Model) {
   |> string.join("\n\n")
 }
 
-fn render_messages(messages: messages.Messages) {
-  let messages_to_render = [messages.User(messages.first), ..messages.rest]
-  use acc, message <- list.fold(messages_to_render, "")
+fn render_messages(messages: List(messages.Message)) {
+  use acc, message <- list.fold(messages, "")
   acc
   <> case message {
     messages.User(user_message) ->
