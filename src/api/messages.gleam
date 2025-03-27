@@ -1,71 +1,72 @@
-// import api/models
-// import effect
-// import envoy
-// import gleam/dynamic
-// import gleam/dynamic/decode
-// import gleam/fetch
-// import gleam/http/request
-// import gleam/json
-// import gleam/result
-// 
-// const anthropic_api_models = "https://api.anthropic.com/v1/models"
-// 
-// pub type GetModelError {
-//   Fetch(fetch.FetchError)
-//   NoEnv
-//   InvalidEndpoint
-//   ReadBody
-//   DecodeError
-// }
-// 
-// pub type Model {
-//   Model(id: String, display_name: String)
-// }
-// 
-// pub fn get_models() {
-//   use api_key <- effect.try(
-//     envoy.get("ANTHROPIC_API_KEY") |> result.replace_error(NoEnv),
-//   )
-//   use req <- effect.try(
-//     request.to(anthropic_api_models) |> result.replace_error(InvalidEndpoint),
-//   )
-// 
-//   let req =
-//     req
-//     |> models.set_default_headers(api_key)
-// 
-//   use res <- effect.try_await_map_error(fetch.send(req), Fetch)
-//   use res <- effect.try_await_map_error(fetch.read_text_body(res), Fetch)
-// 
-//   use models <- effect.try(
-//     res.body
-//     |> decode_messages
-//     |> result.replace_error(DecodeError),
-//   )
-// 
-//   models |> Ok |> effect.dispatch
-// }
-// 
-// fn decode_messages(json_string) {
-//   todo
-// }
-// 
-// fn decode_models(json_string) {
-//   let model_decoder = {
-//     use id <- decode.field("id", decode.string)
-//     use display_name <- decode.field("display_name", decode.string)
-//     decode.success(Model(id:, display_name:))
-//   }
-// 
-//   let data_decoder = {
-//     use data <- decode.field("data", decode.dynamic)
-//     decode.success(dynamic.from(data))
-//   }
-// 
-//   use dynamic <- result.try(
-//     json.parse(json_string, data_decoder) |> result.replace_error(DecodeError),
-//   )
-// 
-//   decode.run(dynamic, decode.list(of: model_decoder))
-//   |> result.replace_error(DecodeError)
-// }
+import api/config
+import api/models
+import effect
+import envoy
+import gleam/dynamic
+import gleam/dynamic/decode
+import gleam/fetch
+import gleam/http/request
+import gleam/json
+import gleam/result
+import messages
+
+pub type MessagesRequestError {
+  Fetch(fetch.FetchError)
+  Config(config.ConfigError)
+  InvalidEndpoint
+  ReadBody
+  Decode
+}
+
+pub fn get_messages() {
+  use api_key <- effect.from_result_map_error(
+    config.get_api_key("ANTHROPIC_API_KEY"),
+    Config,
+  )
+  todo
+}
+
+fn parse_stop_reason(stop_reason) {
+  case stop_reason {
+    "end_turn" -> messages.EndTurn
+    "max_tokens" -> messages.MaxTokens
+    "stop_sequence" -> messages.StopSequence
+    "tool_use" -> messages.ToolUse
+    _ -> messages.Unknown
+  }
+}
+
+fn decode_messages(json_string) {
+  let content_decoder = {
+    use text <- decode.field("text", decode.string)
+    decode.success(messages.AIMessage(content: messages.Text(text)))
+  }
+
+  let usage_decoder = {
+    use input <- decode.field("input_tokens", decode.int)
+    use output <- decode.field("output_tokens", decode.int)
+    decode.success(messages.Tokens(input, output))
+  }
+
+  let messages_decoder = {
+    use content <- decode.field("content", decode.list(content_decoder))
+    use id <- decode.field("id", decode.string)
+    use model <- decode.field("model", decode.string)
+    use stop_reason <- decode.field("stop_reason", decode.string)
+    use usage <- decode.field("usage", usage_decoder)
+    decode.success(messages.AnthropicResponse(
+      id:,
+      content:,
+      model:,
+      stop_reason: parse_stop_reason(stop_reason),
+      usage:,
+    ))
+  }
+
+  use dynamic <- result.try(
+    json.parse(json_string, decode.dynamic)
+    |> result.replace_error(decode.DecodeError),
+  )
+  decode.run(dynamic, messages_decoder)
+  |> result.replace_error(decode.DecodeError)
+}

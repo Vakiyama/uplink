@@ -12,8 +12,8 @@ pub type Content {
   Text(text: String)
 }
 
-pub type AssistantMessage {
-  AssistantMessage(content: Content)
+pub type AIMessage {
+  AIMessage(content: Content)
 }
 
 pub type UserMessage {
@@ -21,7 +21,7 @@ pub type UserMessage {
 }
 
 pub type Message {
-  Assistant(AssistantMessage)
+  Assistant(AIMessage)
   User(UserMessage)
 }
 
@@ -53,7 +53,8 @@ pub type StopReason {
   EndTurn
   MaxTokens
   StopSequence
-  // ToolUse
+  ToolUse
+  Unknown
 }
 
 pub type Usage {
@@ -63,7 +64,7 @@ pub type Usage {
 pub type LLMResponse {
   AnthropicResponse(
     id: String,
-    content: Content,
+    content: List(AIMessage),
     model: String,
     stop_reason: StopReason,
     usage: Usage,

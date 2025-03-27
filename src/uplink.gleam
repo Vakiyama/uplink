@@ -125,7 +125,7 @@ fn update_model_choice(model: ModelChoiceModel, event) {
 fn update_chat_model(model: ChatModel, event) {
   case event {
     event.Key(key.Esc) -> #(model, command.quit())
-    // event.Key(key.Enter) -> handle_submit_message(model)
+    event.Key(key.Enter) -> handle_submit_message(model)
     _otherwise -> {
       let #(text_model, command) = text_input.update(model.text_model, event)
       #(ChatModel(..model, text_model:), command)
@@ -133,9 +133,9 @@ fn update_chat_model(model: ChatModel, event) {
   }
 }
 
-// fn handle_submit_message(model: ChatModel) {
-//   todo
-// }
+fn handle_submit_message(model: ChatModel) {
+  let input = model.text_model.value
+}
 
 fn update(model: Model, event) {
   case model.model_choice_model.chosen {
