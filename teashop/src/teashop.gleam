@@ -14,7 +14,8 @@ pub opaque type Action(msg) {
 @external(javascript, "./teashop.ffi.mjs", "setup")
 pub fn app(
   init: fn(flags) -> #(model, command.Command(msg)),
-  update: fn(model, event.Event(msg)) -> #(model, command.Command(msg)),
+  update: fn(model, event.Event(msg), fn(model, command.Command(msg)) -> Nil) ->
+    Nil,
   view: fn(model) -> String,
 ) -> App(model, msg, flags)
 

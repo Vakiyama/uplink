@@ -655,9 +655,9 @@ export class App extends EventEmitter {
   }
 
   flush() {
-    function recurse(done) {
+    const recurse = (done) => {
       if (this.#queue.length) {
-        this.#handleEvent(this.#queue.shift(), recurse)
+        this.#handleEvent(this.#queue.shift(), () => recurse(done))
       } else {
         done()
       }

@@ -16,15 +16,7 @@ import messages
 
 const anthropic_api_messages = "https://api.anthropic.com/v1/messages"
 
-fn text_to_user_message(text: String) -> messages.UserMessage {
-  messages.UserMessage(messages.Text(text))
-}
-
-fn text_to_ai_message(text: String) -> messages.AIMessage {
-  messages.AIMessage(messages.Text(text))
-}
-
-fn message_to_json(message: messages.Message) {
+pub fn message_to_json(message: messages.Message) {
   case message {
     messages.Assistant(ai_message) ->
       json.object([

@@ -4,6 +4,7 @@ import api/models
 import components/text_input
 import gleam/fetch
 import gleam/io
+import gleam/json
 import gleam/list
 import gleam/option
 import gleam/string
@@ -125,18 +126,23 @@ fn update_model_choice(model: ModelChoiceModel, event) {
   }
 }
 
-fn update_chat_model(model: ChatModel, model_choice: ModelChoiceModel, event) {
+fn update_chat_model(
+  model: ChatModel,
+  model_choice: ModelChoiceModel,
+  event,
+  done,
+) {
   let assert option.Some(chosen_model) = model_choice.chosen
 
   case event {
-    event.Key(key.Esc) -> #(model, command.quit())
-    event.Key(key.Enter) -> #(
-      handle_submit_message(model, chosen_model),
-      command.none(),
-    )
+    event.Key(key.Esc) -> done(model, command.quit())
+    event.Key(key.Enter) -> {
+      use new_model <- handle_submit_message(model, chosen_model)
+      done(new_model, command.none())
+    }
     _otherwise -> {
       let #(text_model, command) = text_input.update(model.text_model, event)
-      #(ChatModel(..model, text_model:), command)
+      done(ChatModel(..model, text_model:), command)
     }
   }
 }
@@ -148,57 +154,57 @@ fn initialize_messages(messages: option.Option(List(messages.Message))) {
   }
 }
 
-fn handle_submit_message(model: ChatModel, model_choice: models.Model) {
+fn handle_submit_message(model: ChatModel, model_choice: models.Model, done) {
   let user_message = messages.make_user_message(model.text_model.value)
 
-  let messages = initialize_messages(model.messages)
+  let messages =
+    initialize_messages(model.messages) |> list.append([user_message])
 
-  effect.perform(
+  use response <- effect.perform(
     messages
-      |> list.append([user_message])
-      |> api_messages.get_messages(model_choice, 1024),
-    fn(response) {
-      case response {
-        Error(error) -> {
-          let messages = initialize_messages(model.messages)
-          print_request_error(error)
-          ChatModel(
-            ..model,
-            messages: option.Some(
-              list.append(messages, [
-                messages.make_ai_message(
-                  "An error has occured. Please try again.",
-                ),
-              ]),
-            ),
-          )
-        }
-        Ok(ai_response) -> {
-          let messages = model.messages |> initialize_messages
-
-          ChatModel(
-            ..model,
-            messages: option.Some(
-              messages
-              |> list.append(ai_response.content),
-            ),
-          )
-        }
-      }
-    },
+    |> list.append([user_message])
+    |> api_messages.get_messages(model_choice, 1024),
   )
+
+  let result = case response {
+    Error(error) -> {
+      print_request_error(error)
+      ChatModel(
+        ..model,
+        messages: option.Some(
+          list.append(messages, [
+            messages.make_ai_message("An error has occured. Please try again."),
+          ]),
+        ),
+      )
+    }
+    Ok(ai_response) -> {
+      ChatModel(
+        ..model,
+        messages: option.Some(
+          messages
+          |> list.append(ai_response.content),
+        ),
+      )
+    }
+  }
+  done(result)
 }
 
-fn update(model: Model, event) {
+fn update(model: Model, event, done) {
   case model.model_choice_model.chosen {
     option.Some(_) -> {
-      let #(chat_model, command) = update_chat_model(model.chat_model, event)
-      #(Model(..model, chat_model:), command)
+      use new_chat_model, command <- update_chat_model(
+        model.chat_model,
+        model.model_choice_model,
+        event,
+      )
+      done(Model(..model, chat_model: new_chat_model), command)
     }
     option.None -> {
       let #(model_choice_model, command) =
         update_model_choice(model.model_choice_model, event)
-      #(Model(..model, model_choice_model:), command)
+      done(Model(..model, model_choice_model:), command)
     }
   }
 }
@@ -226,13 +232,18 @@ fn render_chat(model: ChatModel, choice: models.Model) {
 }
 
 fn render_messages(messages: List(messages.Message)) {
+  // list.each(messages, fn(mess) {
+  //   api_messages.message_to_json(mess)
+  //   |> json.to_string
+  //   |> io.print
+  // })
   use acc, message <- list.fold(messages, "")
   acc
   <> case message {
     messages.User(user_message) ->
-      "Assitant: " <> user_message.content.text |> ansi.green <> "\n"
+      "User: " <> user_message.content.text |> ansi.green <> "\n"
     messages.Assistant(assistant_message) ->
-      "User: " <> assistant_message.content.text |> ansi.red <> "\n"
+      "Assistant: " <> assistant_message.content.text |> ansi.cyan <> "\n"
   }
 }
 
