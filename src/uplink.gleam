@@ -4,7 +4,6 @@ import api/models
 import components/text_input
 import gleam/fetch
 import gleam/io
-import gleam/json
 import gleam/list
 import gleam/option
 import gleam/string
@@ -166,29 +165,27 @@ fn handle_submit_message(model: ChatModel, model_choice: models.Model, done) {
     |> api_messages.get_messages(model_choice, 1024),
   )
 
-  let result = case response {
+  let new_messages = case response {
     Error(error) -> {
       print_request_error(error)
-      ChatModel(
-        ..model,
-        messages: option.Some(
-          list.append(messages, [
-            messages.make_ai_message("An error has occured. Please try again."),
-          ]),
-        ),
+      option.Some(
+        list.append(messages, [
+          messages.make_ai_message("An error has occured. Please try again."),
+        ]),
       )
     }
     Ok(ai_response) -> {
-      ChatModel(
-        ..model,
-        messages: option.Some(
-          messages
-          |> list.append(ai_response.content),
-        ),
+      option.Some(
+        messages
+        |> list.append(ai_response.content),
       )
     }
   }
-  done(result)
+
+  done(ChatModel(
+    messages: new_messages,
+    text_model: text_input.set_value(model.text_model, ""),
+  ))
 }
 
 fn update(model: Model, event, done) {
