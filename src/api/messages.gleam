@@ -2,7 +2,6 @@ import api/config
 import api/models
 import effect
 import effect/promise
-import gleam/list
 
 // import envoy
 // import gleam/dynamic
