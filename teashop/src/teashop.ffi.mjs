@@ -842,14 +842,23 @@ export class App extends EventEmitter {
   }
 
   #handleEvent(event, done) {
+    let finished = false;
     // Call update with a callback that receives the new model and command.
-    this.#update(this.#model, event, (model, command) => {
+    // update will return a new model, then the callback will set the model
+    const loading_model = this.#update(this.#model, event, (model, command) => {
       let updated_view = this.#view(model);
       this.#handleNewCommand(command);
       this.#renderer.render(updated_view);
       this.#model = model;
+      finished = true;
       done()
     });
+    // render loading model if async (callback hasn't fired)
+    if (!finished) {
+      let updated_view = this.#view(loading_model);
+      this.#renderer.render(updated_view);
+      this.#model = loading_model;
+    }
   }
 
 

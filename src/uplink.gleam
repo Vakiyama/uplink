@@ -63,6 +63,7 @@ type ChatModel {
   ChatModel(
     text_model: text_input.Model,
     messages: option.Option(List(messages.Message)),
+    loading: option.Option(String),
   )
 }
 
@@ -82,6 +83,7 @@ fn get_init(models: List(models.Model)) {
         chat_model: ChatModel(
           text_model: text_input.new(),
           messages: option.None,
+          loading: option.None,
         ),
       ),
       command.set_window_title("uplink"),
@@ -134,14 +136,21 @@ fn update_chat_model(
   let assert option.Some(chosen_model) = model_choice.chosen
 
   case event {
-    event.Key(key.Esc) -> done(model, command.quit())
+    event.Key(key.Esc) -> {
+      done(model, command.quit())
+      model
+    }
     event.Key(key.Enter) -> {
-      use new_model <- handle_submit_message(model, chosen_model)
-      done(new_model, command.none())
+      {
+        use new_model <- handle_submit_message(model, chosen_model)
+        done(new_model, command.none())
+      }
+      ChatModel(..model, loading: option.Some("Thinking..."))
     }
     _otherwise -> {
       let #(text_model, command) = text_input.update(model.text_model, event)
       done(ChatModel(..model, text_model:), command)
+      model
     }
   }
 }
@@ -185,23 +194,34 @@ fn handle_submit_message(model: ChatModel, model_choice: models.Model, done) {
   done(ChatModel(
     messages: new_messages,
     text_model: text_input.set_value(model.text_model, ""),
+    loading: option.None,
   ))
 }
 
 fn update(model: Model, event, done) {
   case model.model_choice_model.chosen {
     option.Some(_) -> {
-      use new_chat_model, command <- update_chat_model(
-        model.chat_model,
-        model.model_choice_model,
-        event,
-      )
-      done(Model(..model, chat_model: new_chat_model), command)
+      let loading_model =
+        update_chat_model(
+          model.chat_model,
+          model.model_choice_model,
+          event,
+          fn(new_chat_model, command) {
+            done(Model(..model, chat_model: new_chat_model), command)
+          },
+        )
+      Model(..model, chat_model: loading_model)
+      // use new_chat_model, command <- update_chat_model(
+      //   model.chat_model,
+      //   model.model_choice_model,
+      //   event,
+      // )
     }
     option.None -> {
       let #(model_choice_model, command) =
         update_model_choice(model.model_choice_model, event)
       done(Model(..model, model_choice_model:), command)
+      model
     }
   }
 }
@@ -222,7 +242,10 @@ fn render_chat(model: ChatModel, choice: models.Model) {
       option.Some(messages) -> render_messages(messages)
       option.None -> render_empty_messages(choice.display_name)
     }
-    <> text_input.view(model.text_model)
+    <> case model.loading {
+      option.Some(loading) -> loading
+      option.None -> text_input.view(model.text_model)
+    }
 
   [body, footer]
   |> string.join("\n\n")
