@@ -2,7 +2,7 @@ import teashop/command
 import teashop/duration
 import teashop/event
 
-pub opaque type BlinkState {
+pub type BlinkState {
   Initial
   Msg(id: Int, tag: Int)
 }

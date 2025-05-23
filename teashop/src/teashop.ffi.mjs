@@ -845,7 +845,7 @@ export class App extends EventEmitter {
     let finished = false;
     // Call update with a callback that receives the new model and command.
     // update will return a new model, then the callback will set the model
-    const loading_model = this.#update(this.#model, event, (model, command) => {
+    const loading_model = this.#update(this.#model, event, (msg) => this.emit("custom_messages", msg), (model, command) => {
       let updated_view = this.#view(model);
       this.#handleNewCommand(command);
       this.#renderer.render(updated_view);
